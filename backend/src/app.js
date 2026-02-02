@@ -18,9 +18,11 @@ app.get("/", (req, res) => {
   });
 });
 
+if (process.env.TESTER_MODE === "true") {
+  console.log("tester.....")
+  app.use("/api", honeypotSafeRoute);
+}
 app.use("/api/honeypot", honeypotRoutes);
-
-app.use("/api", honeypotSafeRoute);
 
 app.get("/ping", (req, res) => {
   res.send("pong");

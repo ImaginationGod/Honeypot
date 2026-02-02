@@ -1,4 +1,3 @@
-// src/routes/honeypot.safe.route.js
 import express from "express";
 
 const router = express.Router();
