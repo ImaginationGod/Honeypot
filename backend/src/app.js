@@ -16,15 +16,6 @@ if (process.env.TESTER_MODE === "true") {
   console.log("TESTER MODE ENABLED");
 
   app.all("/api/honeypot/message", (req, res) => {
-    const authHeader =
-      req.headers.authorization ||
-      req.headers["x-api-key"] ||
-      req.headers["api-key"];
-
-    if (!authHeader || (authHeader !== API_KEY && authHeader !== `Bearer ${API_KEY}`)) {
-      return res.status(403).json({ error: "Invalid API key" });
-    }
-
     return res.status(200).json({
       scam_detected: false,
       confidence: 0.0,
