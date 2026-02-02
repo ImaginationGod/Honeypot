@@ -7,7 +7,37 @@ import { formatResponse } from "../utils/responseFormatter.js";
 
 export default async function honeypotController(req, res, next) {
     try {
-        const { conversation_id, message } = req.body;
+        // const { conversation_id, message } = req.body;
+        const body = req.body || {};
+
+        const message =
+            body.message ||
+            body.input ||
+            body.text ||
+            body.prompt ||
+            null;
+
+        const conversation_id =
+            body.conversation_id ||
+            body.conversationId ||
+            `auto-${Date.now()}`;
+
+        if (!message || typeof message !== "string") {
+            return res.status(200).json({
+                scam_detected: false,
+                confidence: 0,
+                engagement: {
+                    conversation_id,
+                    turns: 0,
+                    duration_seconds: 0
+                },
+                extracted_intelligence: {
+                    bank_accounts: [],
+                    upi_ids: [],
+                    phishing_urls: []
+                }
+            });
+        }
 
         let convo = await Conversation.findOne({ conversationId: conversation_id });
         if (!convo) {
