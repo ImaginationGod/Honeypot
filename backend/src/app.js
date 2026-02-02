@@ -10,7 +10,7 @@ app.use(cors());
 if (process.env.TESTER_MODE === "true") {
   console.log("TESTER MODE ENABLED");
 
-  app.all("/api/honeypot*", (req, res) => {
+  app.all(/^\/api\/honeypot(\/.*)?$/, (req, res) => {
     return res.status(200).json({
       scam_detected: false,
       confidence: 0,
