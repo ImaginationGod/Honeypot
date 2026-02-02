@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import honeypotRoutes from "./routes/honeypot.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
+import { API_KEY } from "./config/env.js";
 
 const app = express();
 
@@ -14,11 +15,19 @@ app.use(express.text({ type: "*/*" }));
 if (process.env.TESTER_MODE === "true") {
   console.log("TESTER MODE ENABLED");
 
-  // app.all(/^\/api\/honeypot(\/.*)?$/, (req, res) => {
   app.all("/api/honeypot/message", (req, res) => {
+    const authHeader =
+      req.headers.authorization ||
+      req.headers["x-api-key"] ||
+      req.headers["api-key"];
+
+    if (!authHeader || (authHeader !== API_KEY && authHeader !== `Bearer ${API_KEY}`)) {
+      return res.status(403).json({ error: "Invalid API key" });
+    }
+
     return res.status(200).json({
       scam_detected: false,
-      confidence: 0,
+      confidence: 0.0,
       engagement: {
         conversation_id: "tester-auto",
         turns: 0,
