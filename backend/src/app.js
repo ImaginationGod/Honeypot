@@ -7,10 +7,15 @@ const app = express();
 
 app.use(cors());
 
+app.use(express.json({ limit: "2mb", strict: false }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.text({ type: "*/*" }));
+
 if (process.env.TESTER_MODE === "true") {
   console.log("TESTER MODE ENABLED");
 
-  app.all(/^\/api\/honeypot(\/.*)?$/, (req, res) => {
+  // app.all(/^\/api\/honeypot(\/.*)?$/, (req, res) => {
+  app.all("/api/honeypot/message", (req, res) => {
     return res.status(200).json({
       scam_detected: false,
       confidence: 0,
@@ -27,10 +32,6 @@ if (process.env.TESTER_MODE === "true") {
     });
   });
 }
-
-app.use(express.json({ limit: "2mb", strict: false }));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.text({ type: "*/*" }));
 
 app.get("/", (req, res) => {
   res.status(200).json({
