@@ -7,6 +7,10 @@ import authMiddleware from "./middlewares/auth.middleware.js";
 
 const app = express();
 
+if (process.env.TESTER_MODE === "true") {
+  app.use("/api", honeypotSafeRoute);
+}
+
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -19,14 +23,11 @@ app.get("/", (req, res) => {
   });
 });
 
-if (process.env.TESTER_MODE === "true") {
-  app.use("/api", honeypotSafeRoute);
-}
-app.use("/api/honeypot", honeypotRoutes);
-
 app.get("/ping", (req, res) => {
   res.send("pong");
 });
+
+app.use("/api/honeypot", honeypotRoutes);
 
 app.use(errorMiddleware);
 
