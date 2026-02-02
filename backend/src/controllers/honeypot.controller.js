@@ -7,22 +7,30 @@ import { formatResponse } from "../utils/responseFormatter.js";
 
 export default async function honeypotController(req, res, next) {
     try {
-        // const { conversation_id, message } = req.body;
-        const body = req.body || {};
+        let message = "";
 
-        const message =
-            body.message ||
-            body.input ||
-            body.text ||
-            body.prompt ||
-            null;
+        if (req.body && typeof req.body === "object") {
+            message =
+                req.body.message ||
+                req.body.input ||
+                req.body.text ||
+                req.body.prompt ||
+                "";
+        }
+
+        if (!message && typeof req.body === "string") {
+            message = req.body;
+        }
+
+        message = String(message || "").trim();
 
         const conversation_id =
-            body.conversation_id ||
-            body.conversationId ||
+            req.body?.conversation_id ||
+            req.body?.conversationId ||
+            req.headers["x-conversation-id"] ||
             `auto-${Date.now()}`;
 
-        if (!message || typeof message !== "string") {
+        if (!message) {
             return res.status(200).json({
                 scam_detected: false,
                 confidence: 0,
@@ -43,15 +51,30 @@ export default async function honeypotController(req, res, next) {
         if (!convo) {
             convo = await Conversation.create({
                 conversationId: conversation_id,
-                messages: []
+                messages: [],
+                scamDetected: false,
+                extractedData: null
             });
         }
 
         convo.messages.push({ role: "user", content: message });
 
-        const detection = convo.scamDetected
-            ? { scam: true, confidence: 1 }
-            : await detectScam(message);
+        const heuristic = /account|verify|blocked|suspend|kyc|urgent|bank/i;
+        const heuristicDetected = heuristic.test(message);
+
+        let aiDetection = { scam: false, confidence: 0 };
+        try {
+            aiDetection = await detectScam(message);
+        } catch (err) {
+            console.error("detectScam error:", err);
+        }
+
+        const isScam = aiDetection.scam || heuristicDetected;
+
+        const detection = {
+            scam: isScam,
+            confidence: isScam ? Math.max(aiDetection.confidence || 0.6, 0.6) : 0
+        };
 
         if (detection.scam) {
             convo.scamDetected = true;
@@ -71,7 +94,7 @@ export default async function honeypotController(req, res, next) {
 
         const metrics = calculateMetrics(convo);
 
-        res.json(
+        return res.status(200).json(
             formatResponse({
                 detection,
                 conversation: convo,
@@ -79,7 +102,23 @@ export default async function honeypotController(req, res, next) {
                 extracted: convo.extractedData
             })
         );
+
     } catch (err) {
-        next(err);
+        console.error("Honeypot controller error:", err);
+
+        return res.status(200).json({
+            scam_detected: false,
+            confidence: 0,
+            engagement: {
+                conversation_id: "fallback",
+                turns: 0,
+                duration_seconds: 0
+            },
+            extracted_intelligence: {
+                bank_accounts: [],
+                upi_ids: [],
+                phishing_urls: []
+            }
+        });
     }
 }
