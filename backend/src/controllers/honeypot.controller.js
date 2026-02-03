@@ -59,9 +59,6 @@ export default async function honeypotController(req, res, next) {
 
         convo.messages.push({ role: "user", content: message });
 
-        // const heuristic = /account|verify|blocked|suspend|kyc|urgent|bank/i;
-        // const heuristicDetected = heuristic.test(message);
-
         const keywords = /verify|blocked|suspend|kyc|urgent|immediately|click|otp/i;
         const context = /bank|account|upi|payment/i;
 
@@ -71,17 +68,23 @@ export default async function honeypotController(req, res, next) {
         let aiDetection = { scam: false, confidence: 0 };
         try {
             aiDetection = await detectScam(message);
-        }
-        // catch (err) {
-        //     console.error("detectScam error:", err);
-        // }
-        catch { }
+        } catch { }
 
-        const isScam = aiDetection.scam || heuristicDetected;
+        let riskScore = 0;
+
+        if (heuristicDetected) riskScore += 0.4;
+        if (aiDetection.confidence) riskScore += aiDetection.confidence;
+
+        riskScore = Math.min(riskScore, 1);
+
+        const isScam = riskScore >= 0.6;
 
         const detection = {
             scam: isScam,
-            confidence: isScam ? Math.max(aiDetection.confidence || 0.6, 0.6) : 0
+            confidence: Number(
+                // isScam ? riskScore.toFixed(2) : (riskScore * 0.5).toFixed(2)
+                isScam ? Math.min(0.95, riskScore).toFixed(2) : (riskScore * 0.5).toFixed(2)
+            )
         };
 
         if (detection.scam) {
@@ -100,7 +103,10 @@ export default async function honeypotController(req, res, next) {
 
         await convo.save();
 
-        const metrics = calculateMetrics(convo);
+        const metrics = calculateMetrics({
+            ...convo.toObject(),
+            messages: convo.messages.filter(m => m.role === "user")
+        });
 
         return res.status(200).json(
             formatResponse({
