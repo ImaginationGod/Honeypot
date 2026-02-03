@@ -2,15 +2,15 @@ import express from "express";
 import cors from "cors";
 import honeypotRoutes from "./routes/honeypot.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
-import { API_KEY } from "./config/env.js";
 
 const app = express();
 
 app.use(cors());
 
+app.use(express.text({ type: "*/*" }));
 app.use(express.json({ limit: "2mb", strict: false }));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.text({ type: "*/*" }));
+// app.use(express.text({ type: "*/*" }));
 
 if (process.env.TESTER_MODE === "true") {
   console.log("TESTER MODE ENABLED");
@@ -18,7 +18,7 @@ if (process.env.TESTER_MODE === "true") {
   app.all("/api/honeypot/message", (req, res) => {
     return res.status(200).json({
       scam_detected: false,
-      confidence: 0.0,
+      confidence: 0,
       engagement: {
         conversation_id: "tester-auto",
         turns: 0,

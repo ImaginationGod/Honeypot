@@ -65,9 +65,11 @@ export default async function honeypotController(req, res, next) {
         let aiDetection = { scam: false, confidence: 0 };
         try {
             aiDetection = await detectScam(message);
-        } catch (err) {
-            console.error("detectScam error:", err);
-        }
+        } 
+        // catch (err) {
+        //     console.error("detectScam error:", err);
+        // }
+        catch {}
 
         const isScam = aiDetection.scam || heuristicDetected;
 
