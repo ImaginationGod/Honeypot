@@ -59,17 +59,23 @@ export default async function honeypotController(req, res, next) {
 
         convo.messages.push({ role: "user", content: message });
 
-        const heuristic = /account|verify|blocked|suspend|kyc|urgent|bank/i;
-        const heuristicDetected = heuristic.test(message);
+        // const heuristic = /account|verify|blocked|suspend|kyc|urgent|bank/i;
+        // const heuristicDetected = heuristic.test(message);
+
+        const keywords = /verify|blocked|suspend|kyc|urgent|immediately|click|otp/i;
+        const context = /bank|account|upi|payment/i;
+
+        const heuristicDetected =
+            keywords.test(message) && context.test(message);
 
         let aiDetection = { scam: false, confidence: 0 };
         try {
             aiDetection = await detectScam(message);
-        } 
+        }
         // catch (err) {
         //     console.error("detectScam error:", err);
         // }
-        catch {}
+        catch { }
 
         const isScam = aiDetection.scam || heuristicDetected;
 
