@@ -32,8 +32,8 @@ import { API_KEY } from "../config/env.js";
 
 export default function authMiddleware(req, res, next) {
 
-    // Allow unauthenticated GET (tester ping)
-    if (req.method === "GET") {
+    // Allow unauthenticated tester ping
+    if (req.method === "GET" && req.path.includes("/honeypot")) {
         return next();
     }
 
