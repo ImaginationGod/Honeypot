@@ -34,6 +34,14 @@ async function notifyGuviFinal(convo) {
 }
 
 export default async function honeypotController(req, res) {
+    const withTimeout = (promise, ms) =>
+        Promise.race([
+            promise,
+            new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("Timeout")), ms)
+            )
+        ]);
+
     const normalizeExtractedIntel = (raw = {}) => ({
         bankAccounts: raw.bankAccounts || raw.bank_accounts || [],
         upilds: raw.upiIds || raw.upi_ids || raw.upilds || [],
@@ -90,7 +98,8 @@ export default async function honeypotController(req, res) {
         const heuristicDetected = (keywords.test(message) && context.test(message)) || hasLink || hasUpi || hasPhoneNumber || linkIntent.test(message);
 
         let aiDetection = { scam: false, confidence: 0 };
-        try { aiDetection = await detectScam(message); } catch { }
+        // try { aiDetection = await detectScam(message); } catch { }
+        try { aiDetection = await withTimeout(detectScam(message), 1200); } catch { }
 
         const alreadyFlagged = convo.scamDetected === true;
         let riskScore = 0;
@@ -99,22 +108,32 @@ export default async function honeypotController(req, res) {
 
         const isScam = alreadyFlagged || (Math.min(riskScore, 1) >= 0.6);
 
-        let reply = "Thanks for reaching out. Could you please provide more details?";
+        // let reply = "Thanks for reaching out. Could you please provide more details?";
+        let reply = isScam
+            ? "I'm really worried about my account. Can you explain what I need to do?"
+            : "Thanks for reaching out. Could you please provide more details?";
 
         if (isScam) {
             convo.scamDetected = true;
             const history = convo.messages.map(m => `${m.role}: ${m.content}`).join("\n");
 
-            try {
-                const prompt = agentPersonaPrompt(history);
-                let rawReply = await runAgent(prompt);
-                reply = rawReply.replace(/^["']|["']$/g, '').trim();
-            } catch (e) {
-                reply = "I'm a bit confused. What exactly do I need to do to fix this?";
-            }
+            // try {
+            //     const prompt = agentPersonaPrompt(history);
+            //     let rawReply = await runAgent(prompt);
+            //     reply = rawReply.replace(/^["']|["']$/g, '').trim();
+            // } catch (e) {
+            //     reply = "I'm a bit confused. What exactly do I need to do to fix this?";
+            // }
 
             (async () => {
                 try {
+                    try {
+                        const prompt = agentPersonaPrompt(history);
+                        let rawReply = await runAgent(prompt);
+                        reply = rawReply.replace(/^["']|["']$/g, '').trim();
+                    } catch (e) {
+                        reply = "I'm a bit confused. What exactly do I need to do to fix this?";
+                    }
                     // const rawExtracted = await extractIntel(history);
                     // const extracted = normalizeExtractedIntel(rawExtracted);
                     let extracted = {
