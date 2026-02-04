@@ -14,7 +14,7 @@ const conversationSchema = new mongoose.Schema(
         finalCallbackSent: { type: Boolean, default: false },
         extractedData: {
             bankAccounts: { type: [String], default: [] },
-            upilds: { type: [String], default: [] },
+            upiIds: { type: [String], default: [] },
             phishingLinks: { type: [String], default: [] },
             phoneNumbers: { type: [String], default: [] },
             suspiciousKeywords: { type: [String], default: [] },
