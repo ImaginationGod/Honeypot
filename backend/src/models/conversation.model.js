@@ -1,19 +1,24 @@
 import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema({
-    role: String,
-    content: String
+    role: { type: String, required: true },
+    content: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now }
 });
 
 const conversationSchema = new mongoose.Schema(
     {
-        conversationId: { type: String, unique: true },
+        conversationId: { type: String, unique: true, index: true, required: true },
         messages: [messageSchema],
         scamDetected: { type: Boolean, default: false },
+        finalCallbackSent: { type: Boolean, default: false },
         extractedData: {
-            bank_accounts: [],
-            upi_ids: [],
-            phishing_urls: []
+            bankAccounts: { type: [String], default: [] },
+            upilds: { type: [String], default: [] },
+            phishingLinks: { type: [String], default: [] },
+            phoneNumbers: { type: [String], default: [] },
+            suspiciousKeywords: { type: [String], default: [] },
+            agentNotes: { type: String, default: "" }
         }
     },
     { timestamps: true }

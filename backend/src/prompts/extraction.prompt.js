@@ -1,11 +1,17 @@
 export const extractionPrompt = (history) => `
-Extract scam intelligence from this conversation.
+You are a fraud intelligence extraction system.
 
-Return ONLY JSON:
+Extract ALL scam indicators from the conversation.
+If something is clearly implied, infer it.
+
+Return ONLY valid JSON in this exact format:
 {
-  "bank_accounts": [],
-  "upi_ids": [],
-  "phishing_urls": []
+  "bankAccounts": [],
+  "upiIds": [],
+  "phishingLinks": [],
+  "phoneNumbers": [],
+  "suspiciousKeywords": [],
+  "agentNotes": ""
 }
 
 Conversation:

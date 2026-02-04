@@ -1,160 +1,172 @@
 import axios from "axios";
 import Conversation from "../models/conversation.model.js";
 import { detectScam } from "../services/scamDetection.service.js";
+import { agentPersonaPrompt } from "../prompts/agentPersona.prompt.js";
 import { runAgent } from "../services/agent.service.js";
 import { extractIntel } from "../services/extraction.service.js";
-import { calculateMetrics } from "../utils/metrics.util.js";
 
-async function notifyGuvi(payload) {
+async function notifyGuviFinal(convo) {
+    const payload = {
+        sessionId: convo.conversationId,
+        scamDetected: true,
+        totalMessagesExchanged: convo.messages.length,
+        extractedIntelligence: {
+            bankAccounts: convo.extractedData?.bankAccounts || [],
+            upiIds: convo.extractedData?.upiIds || [],
+            phishingLinks: convo.extractedData?.phishingLinks || [],
+            phoneNumbers: convo.extractedData?.phoneNumbers || [],
+            suspiciousKeywords: convo.extractedData?.suspiciousKeywords || []
+        },
+        agentNotes: convo.extractedData?.agentNotes || "Scammer engagement successful. Intelligence captured."
+    };
+
     try {
         await axios.post(
             "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
             payload,
-            { timeout: 3000 }
+            { timeout: 5000 }
         );
+        console.log(`Final Callback sent for session: ${convo.conversationId}`);
+        console.log(payload)
     } catch (err) {
-        console.error("GUVI callback failed:", err.message);
+        console.error("GUVI mandatory callback failed:", err.message);
     }
 }
 
 export default async function honeypotController(req, res) {
+    const normalizeExtractedIntel = (raw = {}) => ({
+        bankAccounts: raw.bankAccounts || raw.bank_accounts || [],
+        upilds: raw.upiIds || raw.upi_ids || raw.upilds || [],
+        phishingLinks: raw.phishingLinks || raw.phishing_urls || [],
+        phoneNumbers: raw.phoneNumbers || [],
+        suspiciousKeywords: raw.suspiciousKeywords || [],
+        agentNotes: raw.agentNotes || ""
+    });
+
     try {
+        let body = req.body;
+        if (typeof body === "string") {
+            try {
+                body = JSON.parse(body);
+            } catch (e) {
+                console.error("Failed to parse body string:", e);
+            }
+        }
+        const rawId = body?.sessionId || body?.message?.sessionId || body?.conversation_id;
+
+        const safeId = rawId || `auto-${Date.now()}`;
+
+        // console.log(`[Session Check] Raw: ${rawId} | Final: ${safeId}`);
+
         let message = "";
-
-        // Official GUVI payload
-        if (req.body?.message?.text) {
-            message = req.body.message.text;
-        }
-        // Backward compatibility
-        else if (req.body && typeof req.body === "object") {
-            message =
-                req.body.message ||
-                req.body.input ||
-                req.body.text ||
-                req.body.prompt ||
-                "";
-        }
-        // Plain text body
-        else if (typeof req.body === "string") {
-            message = req.body;
-        }
-
+        if (body?.message?.text) message = body.message.text;
+        else if (body?.text) message = body.text;
+        else if (typeof body === "string") message = body;
         message = String(message || "").trim();
 
-        const conversation_id =
-            req.body?.sessionId ||
-            req.body?.conversation_id ||
-            req.body?.conversationId ||
-            req.headers["x-conversation-id"] ||
-            `auto-${Date.now()}`;
+        let convo = await Conversation.findOne({ conversationId: safeId });
 
-        let convo = await Conversation.findOne({ conversationId: conversation_id });
         if (!convo) {
             convo = await Conversation.create({
-                conversationId: conversation_id,
+                conversationId: safeId,
                 messages: [],
                 scamDetected: false,
-                extractedData: null
+                extractedData: { bankAccounts: [], upiIds: [], phishingLinks: [], phoneNumbers: [], suspiciousKeywords: [] }
             });
         }
 
         if (message) {
             convo.messages.push({ role: "user", content: message });
+            await convo.save();
         }
 
-        const keywords = /verify|blocked|suspend|kyc|urgent|immediately|click|otp/i;
-        const context = /bank|account|upi|payment/i;
+        const keywords = /verify|blocked|suspend|kyc|urgent|immediately|click|otp|pay|rupees|official|disconnected|prize|job/i;
+        const context = /bank|account|upi|payment|id|vpa|wallet|electricity|bill/i;
+        const hasUpi = /[\w.-]+@[\w.-]+/.test(message);
         const hasLink = /(https?:\/\/|www\.|bit\.ly|tinyurl)/i.test(message);
-
         const linkIntent = /(click|tap|open).*(link)/i;
+        const hasPhoneNumber = /(\+?\d{1,3}[\s-]?)?\d{10}/.test(message);
 
-        const heuristicDetected =
-            keywords.test(message) &&
-            (
-                context.test(message) ||
-                hasLink ||
-                linkIntent.test(message)
-            );
+        const heuristicDetected = (keywords.test(message) && context.test(message)) || hasLink || hasUpi || hasPhoneNumber || linkIntent.test(message);
 
         let aiDetection = { scam: false, confidence: 0 };
-        try {
-            aiDetection = await detectScam(message);
-        } catch { }
+        try { aiDetection = await detectScam(message); } catch { }
 
+        const alreadyFlagged = convo.scamDetected === true;
         let riskScore = 0;
-        if (heuristicDetected) riskScore += 0.6;
-        if (aiDetection.confidence)
-            riskScore += aiDetection.confidence * 0.3;
+        if (heuristicDetected) riskScore += 0.7;
+        if (aiDetection.confidence) riskScore += aiDetection.confidence * 0.3;
 
-        riskScore = Math.min(riskScore, 1);
-        const isScam = riskScore >= 0.6;
+        const isScam = alreadyFlagged || (Math.min(riskScore, 1) >= 0.6);
+
+        let reply = "Thanks for reaching out. Could you please provide more details?";
 
         if (isScam) {
             convo.scamDetected = true;
+            const history = convo.messages.map(m => `${m.role}: ${m.content}`).join("\n");
 
-            const history = convo.messages
-                .map(m => `${m.role}: ${m.content}`)
-                .join("\n");
-
-            // Internal-only (non-blocking)
-            runAgent(history)
-                // .then(r => console.log("Agent raw reply:", r))
-                .catch(() => { });
-
-            extractIntel(history)
-                .then(data => convo.extractedData = data)
-                .catch(() => { });
-        }
-
-        convo.save().catch(console.error);
-
-        const metrics = calculateMetrics({
-            ...convo.toObject(),
-            messages: convo.messages.filter(m => m.role === "user")
-        });
-        // console.log("Metrics:", metrics);
-
-        const NON_SCAM_REPLY =
-            "Thanks for reaching out. Could you please provide more details?";
-
-        const SAFE_SCAM_REPLIES = [
-            "Why is my account being suspended? I haven’t received any notification.",
-            "What verification is pending? I already completed my KYC earlier.",
-            "Which account is this about? I use multiple services.",
-            "Is there an official message or reference number for this?",
-            "Can you explain what happens if I don’t update this today?"
-        ];
-
-        let reply = NON_SCAM_REPLY;
-
-        if (isScam) {
-            const seed = conversation_id
-                .split("")
-                .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
-
-            reply = SAFE_SCAM_REPLIES[seed % SAFE_SCAM_REPLIES.length];
-
-            if (req.body?.sessionId) {
-                notifyGuvi({
-                    sessionId: req.body.sessionId,
-                    scamDetected: true,
-                    confidence: Number(Math.min(0.95, riskScore).toFixed(2)),
-                    reply,
-                    timestamp: Date.now()
-                });
+            try {
+                const prompt = agentPersonaPrompt(history);
+                let rawReply = await runAgent(prompt);
+                reply = rawReply.replace(/^["']|["']$/g, '').trim();
+            } catch (e) {
+                reply = "I'm a bit confused. What exactly do I need to do to fix this?";
             }
+
+            (async () => {
+                try {
+                    // const rawExtracted = await extractIntel(history);
+                    // const extracted = normalizeExtractedIntel(rawExtracted);
+                    let extracted = {
+                        bankAccounts: [],
+                        upilds: [],
+                        phishingLinks: [],
+                        phoneNumbers: [],
+                        suspiciousKeywords: [],
+                        agentNotes: ""
+                    };
+
+                    try {
+                        const rawExtracted = await extractIntel(history);
+                        extracted = normalizeExtractedIntel(rawExtracted);
+                    } catch (err) {
+                        console.warn("Extraction failed, continuing without intel");
+                    }
+
+                    const updatedConvo = await Conversation.findOneAndUpdate(
+                        { conversationId: safeId },
+                        {
+                            $set: { scamDetected: true, extractedData: extracted },
+                            $push: { messages: { role: "assistant", content: reply } }
+                        },
+                        { new: true, upsert: true }
+                    );
+
+                    if (!updatedConvo.finalCallbackSent) {
+                        await notifyGuviFinal(updatedConvo);
+
+                        await Conversation.updateOne(
+                            { conversationId: safeId },
+                            { $set: { finalCallbackSent: true } }
+                        );
+                    }
+
+                } catch (err) {
+                    console.error("Background Worker Error:", err);
+                }
+            })();
+        } else {
+            convo.messages.push({ role: "assistant", content: reply });
+            await convo.save();
         }
 
         return res.status(200).json({
             status: "success",
-            reply
+            reply: reply
         });
 
     } catch (err) {
-        console.error("Honeypot controller error:", err);
-        return res.status(200).json({
-            status: "success",
-            reply: "Sorry, I didn’t catch that. Can you repeat?"
-        });
+        console.error("Critical Honeypot Error:", err);
+        return res.status(200).json({ status: "success", reply: "Sorry, I didn't quite catch that. Can you repeat?" });
     }
 }
