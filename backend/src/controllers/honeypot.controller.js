@@ -27,7 +27,7 @@ async function notifyGuviFinal(convo) {
             { timeout: 5000 }
         );
         console.log(`Final Callback sent for session: ${convo.conversationId}`);
-        // console.log(payload)
+        console.log(payload)
     } catch (err) {
         console.error("GUVI mandatory callback failed:", err.message);
     }
@@ -44,7 +44,7 @@ export default async function honeypotController(req, res) {
 
     const normalizeExtractedIntel = (raw = {}) => ({
         bankAccounts: raw.bankAccounts || raw.bank_accounts || [],
-        upilds: raw.upiIds || raw.upi_ids || raw.upilds || [],
+        upiIds: raw.upiIds || raw.upi_ids || [],
         phishingLinks: raw.phishingLinks || raw.phishing_urls || [],
         phoneNumbers: raw.phoneNumbers || [],
         suspiciousKeywords: raw.suspiciousKeywords || [],
@@ -111,13 +111,16 @@ export default async function honeypotController(req, res) {
             convo.scamDetected = true;
             const history = convo.messages.map(m => `${m.role}: ${m.content}`).join("\n");
 
+            let rawReply;
             try {
                 const prompt = agentPersonaPrompt(history);
-                let rawReply = await runAgent(prompt);
+                // let rawReply = await runAgent(prompt);
+                rawReply = await withTimeout(runAgent(prompt), 4000); // 4 sec wait at best
                 reply = rawReply.replace(/^["']|["']$/g, '').trim();
             } catch (e) {
                 reply = "I'm a bit confused. What exactly do I need to do to fix this?";
             }
+
             res.status(200).json({
                 status: "success",
                 reply: reply
@@ -134,11 +137,30 @@ export default async function honeypotController(req, res) {
                         agentNotes: ""
                     };
 
+                    const extractionContext = `${history}\nassistant: ${reply}`;
                     try {
-                        const rawExtracted = await extractIntel(history);
+                        const rawExtracted = await extractIntel(extractionContext);
                         extracted = normalizeExtractedIntel(rawExtracted);
                     } catch (err) {
                         console.warn("Extraction failed, continuing without intel");
+                    }
+
+                    const upiMatches = extractionContext.match(/[\w.-]+@[\w.-]+/g);
+                    if (upiMatches?.length) {
+                        extracted.upiIds = [...new Set([...extracted.upiIds, ...upiMatches])];
+                    }
+
+                    const phoneMatches = extractionContext.match(/(\+?\d{1,3}[\s-]?)?\d{10}/g);
+                    if (phoneMatches?.length) {
+                        extracted.phoneNumbers = [...new Set([...extracted.phoneNumbers, ...phoneMatches])];
+                    }
+
+                    const keywordList = ["pay", "blocked", "urgent", "immediately", "verify", "otp"];
+                    const detectedKeywords = keywordList.filter(k =>
+                        extractionContext.toLowerCase().includes(k)
+                    );
+                    if (detectedKeywords.length) {
+                        extracted.suspiciousKeywords = [...new Set([...extracted.suspiciousKeywords, ...detectedKeywords])];
                     }
 
                     const updatedConvo = await Conversation.findOneAndUpdate(

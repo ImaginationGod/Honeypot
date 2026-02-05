@@ -1,10 +1,15 @@
 export const extractionPrompt = (history) => `
-You are a fraud intelligence extraction system.
+You are a fraud intelligence extractor.
 
-Extract ALL scam indicators from the conversation.
-If something is clearly implied, infer it.
+From the conversation below, extract ALL POSSIBLE indicators of a scam.
 
-Return ONLY valid JSON in this exact format:
+Rules:
+- Any string matching something@something is a UPI ID
+- Any amount with ₹, rupees, Rs is a payment attempt
+- Words like blocked, urgent, immediately, pay, verify are suspicious
+- Even if unsure, INCLUDE the value
+
+Return strict JSON:
 {
   "bankAccounts": [],
   "upiIds": [],
@@ -13,6 +18,7 @@ Return ONLY valid JSON in this exact format:
   "suspiciousKeywords": [],
   "agentNotes": ""
 }
+
 
 Conversation:
 ${history}
