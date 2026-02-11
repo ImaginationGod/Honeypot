@@ -1,4 +1,4 @@
-# 🛡️ AI Scam Engagement & Intelligence Extraction Honeypot
+# 🛡️ ScamIntel Honeypot
 
 An AI-powered backend system that detects scam attempts, engages scammers in dynamic multi-turn conversations, extracts structured intelligence, and reports findings via a final callback mechanism.
 
