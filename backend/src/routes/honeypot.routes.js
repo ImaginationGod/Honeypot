@@ -5,7 +5,6 @@ import honeypotController from "../controllers/honeypot.controller.js";
 const router = express.Router();
 
 router.post("/message", authMiddleware, honeypotController);
-// router.get("/message", authMiddleware, honeypotController);
 router.get("/message", (req, res) => {
     res.status(200).json({
         status: "success",
