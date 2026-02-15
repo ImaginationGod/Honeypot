@@ -1,19 +1,30 @@
 # 🛡️ ScamIntel Honeypot
 
-An AI-powered backend system that detects scam attempts, engages scammers in dynamic multi-turn conversations, extracts structured intelligence, and reports findings via a final callback mechanism.
+An AI-powered **full-stack honeypot intelligence system** that detects scam attempts, engages scammers in dynamic multi-turn conversations, extracts structured intelligence, and visualizes results in a modern monitoring dashboard.
 
-Deployed on **Render**.
+Deployed backend on **Render** and frontend on **Vercel**.
 
 ---
 
-# 🚀 Live API
+# 🌐 Live Deployment
+
+### 🔗 Live Demo
+
+🚀 **[View ScamIntel on Vercel](https://honeypot-ewzvvvf6t-ht-projects.vercel.app/)**
+
+---
+
+### 🔹 Backend API
 
 ```
 POST https://honeypot-fr53.onrender.com
 ```
 
-Backend-only system.
-Testable using **Postman / cURL / any HTTP client**.
+### 🔹 Frontend Dashboard
+
+```
+https://honeypot-ewzvvvf6t-ht-projects.vercel.app/
+```
 
 ---
 
@@ -26,6 +37,7 @@ Instead of immediately blocking scammers, this system:
 3. Extracts actionable intelligence
 4. Reports structured results via callback
 5. Stores full conversation in MongoDB
+6. Visualizes sessions in a monitoring dashboard
 
 This simulates a real-world **AI honeypot intelligence trap**.
 
@@ -33,101 +45,116 @@ This simulates a real-world **AI honeypot intelligence trap**.
 
 # 🧠 Core Capabilities
 
+## 🔎 Detection Engine
+
 * ✅ Hybrid Scam Detection (Regex + AI scoring)
-* ✅ Multi-turn AI engagement
-* ✅ Human-like dynamic responses
-* ✅ Intelligence extraction from conversation
-* ✅ Background async extraction worker
-* ✅ Final callback API reporting
+* ✅ Risk scoring model
 * ✅ Timeout-protected AI calls
-* ✅ Persistent conversation memory
+* ✅ Low-latency decision logic
+
+## 🤖 AI Engagement
+
+* ✅ Multi-turn AI persona
+* ✅ Context-aware responses
+* ✅ Human-like dynamic behavior
+* ✅ Scammer manipulation strategy
+
+## 📦 Intelligence Extraction
+
+* ✅ Structured data extraction
+* ✅ Background async worker
+* ✅ Final callback reporting
+* ✅ Persistent conversation storage
+
+## 🖥️ Frontend Dashboard (NEW)
+
+* ✅ Conversation listing with pagination
+* ✅ Conversation detail view
+* ✅ Extracted intelligence panel
+* ✅ Risk score visualization
+* ✅ Scam / Safe badges
+* ✅ Dark mode support
+* ✅ Mobile-responsive UI
+* ✅ AI Interaction Simulator
 
 ---
 
 # 🏗️ Project Structure
 
 ```
-backend/
+root/
 │
-├── src/
-│   │
-│   ├── config/
-│   │   ├── db.js
-│   │   ├── env.js
-│   │   └── openrouter.js
-│   │
-│   ├── constants/
-│   │   └── models.js
-│   │
-│   ├── controllers/
-│   │   └── honeypot.controller.js
-│   │
-│   ├── middlewares/
-│   │   ├── auth.middleware.js
-│   │   └── error.middleware.js
-│   │
-│   ├── models/
-│   │   └── conversation.model.js
-│   │
-│   ├── prompts/
-│   │   ├── agentPersona.prompt.js
-│   │   ├── extraction.prompt.js
-│   │   └── scamDetection.prompt.js
-│   │
-│   ├── routes/
-│   │   └── honeypot.routes.js
-│   │
-│   ├── services/
-│   │   ├── agent.service.js
-│   │   ├── extarction.service.js
-│   │   ├── openrouter.service.js
-│   │   └── scamDetection.service.js
-│   │
-│   ├── utils/
-│   │   ├── jsonCleaner.js
-│   │   ├── metrics.util.js
-│   │   └── responseFormatter.js
-│   │
-│   ├── app.js
-│   └── server.js
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── constants/
+│   │   ├── controllers/
+│   │   ├── middlewares/
+│   │   ├── models/
+│   │   ├── prompts/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── app.js
+│   │   └── server.js
+│   ├── .env
+│   └── package.json
 │
-├── .env
-├── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── assets/
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── utils/
+│   │   ├── app.jsx
+│   │   ├── main.jsx
+│   │   └── index.css
+│   ├── .env
+│   └── package.json
+│
 └── README.md
 ```
 
 ---
-### env file
-```
-PORT=4000
-MONGO_URI=mongodb_url
-OPENROUTER_API_KEY=xxxxx
-API_KEY=test_api_key
 
-```
+## 🖼️ Screenshots
+<img width="1890" height="877" alt="Screenshot 2026-02-15 190716" src="https://github.com/user-attachments/assets/0cead0a6-e2e7-4417-a69c-eab771fb6264" />
+
+<img width="1888" height="870" alt="Screenshot 2026-02-15 191057" src="https://github.com/user-attachments/assets/164d6c48-f71e-4e07-b50a-d0f0672cd362" />
+
+<img width="1915" height="868" alt="Screenshot 2026-02-15 191212" src="https://github.com/user-attachments/assets/9c04ddf0-f21d-4663-a219-55b0ec58f744" />
 
 ---
 
-
 # ⚙️ Tech Stack
 
-### Backend
+## Backend
 
 * Node.js
 * Express.js
 * MongoDB (Mongoose)
+* Axios
+* Render (Deployment)
 
-### AI Layer
+## AI Layer
 
 * OpenRouter LLM API
 * Prompt engineering
 * AI persona modeling
 
-### Infrastructure
+## Frontend
 
-* Render (Deployment)
-* Axios (External API callback)
-* Async background processing
+* React.js
+* React Router DOM
+* Tailwind CSS
+* Lucide Icons
+* React Hot Toast
+* Day.js
+* Recharts
 
 ---
 
@@ -135,27 +162,35 @@ API_KEY=test_api_key
 
 Hybrid model combining:
 
-### 1️⃣ Heuristic Detection (Fast Regex)
+## 1️⃣ Heuristic Detection (Regex)
 
 Detects:
 
 * UPI IDs
 * URLs
 * Phone numbers
-* Keywords: verify, blocked, urgent, click, OTP, pay, etc.
+* Suspicious keywords:
 
-### 2️⃣ AI Detection (Confidence-based)
+  ```
+  verify, blocked, urgent, click, OTP, pay, immediately, transfer
+  ```
+
+---
+
+## 2️⃣ AI Detection (Confidence-based)
 
 AI returns:
 
-```
+```json
 {
-  scam: boolean,
-  confidence: 0.0 – 1.0
+  "scam": true,
+  "confidence": 0.82
 }
 ```
 
-### 🎯 Final Risk Score
+---
+
+## 🎯 Final Risk Score
 
 ```
 Risk = (Heuristic × 0.7) + (AI Confidence × 0.3)
@@ -163,10 +198,10 @@ Risk = (Heuristic × 0.7) + (AI Confidence × 0.3)
 
 If ≥ 0.6 → conversation marked as scam.
 
-This ensures:
+Ensures:
 
-* Low latency
-* Cost control
+* Fast response
+* Controlled AI cost
 * High detection reliability
 
 ---
@@ -179,98 +214,80 @@ When scam is detected, AI:
 * Acts confused / concerned
 * Asks follow-up questions
 * Extracts more intelligence
-* Adapts based on conversation history
-* Handles multi-turn context
+* Maintains multi-turn memory
+* Adapts tone dynamically
 
 ---
 
 # 📦 Intelligence Extracted
 
-System extracts structured data:
+Structured data extracted:
 
 * 🏦 Bank Accounts
 * 💳 UPI IDs
 * 🔗 Phishing URLs
 * 📞 Phone Numbers
 * ⚠ Suspicious Keywords
-* 📝 AI Agent Notes (behavioral analysis)
+* 📝 Agent Notes (behavioral analysis)
 
 ---
 
-# 🧪 Example: Extracted Intelligence (Real Output)
+# 🖥️ Frontend Features
 
-```
-Final Callback sent for session: 3d75b6a6-17f5-415f-907a-f9c42a30b724
+## 1️⃣ AI Interaction Simulator
 
+Simulates scam conversation in real-time.
+
+Features:
+
+* Live chat UI
+* Risk score visualization bar
+* Scam alert indicator
+* Explainability breakdown
+* New Chat reset
+
+---
+
+## 2️⃣ Conversations Dashboard
+
+* Paginated session list
+* Created & updated timestamps
+* Scam/Safe badges
+* Quick intelligence preview
+
+---
+
+## 3️⃣ Conversation Detail View
+
+Displays:
+
+* Full message history
+* Extracted intelligence
+* Risk score
+* Agent reasoning
+* Structured intelligence fields
+
+---
+
+# 🧪 Example Extracted Output
+
+```json
 {
-  sessionId: '3d75b6a6-17f5-415f-907a-f9c42a30b724',
-  scamDetected: true,
-  totalMessagesExchanged: 2,
-  extractedIntelligence: {
-    bankAccounts: [],
-    upiIds: [],
-    phishingLinks: [
-      'http://amaz0n-deals.fake-site.com/claim?id=12345'
-    ],
-    phoneNumbers: [],
-    suspiciousKeywords: [
-      'claim',
-      'quickly',
-      'immediately'
+  "sessionId": "auto-1771154782489",
+  "scamDetected": true,
+  "totalMessagesExchanged": 2,
+  "extractedIntelligence": {
+    "bankAccounts": [],
+    "upiIds": ["xyz@upi"],
+    "phishingLinks": [],
+    "phoneNumbers": [],
+    "suspiciousKeywords": [
+      "blocked",
+      "immediately",
+      "pay"
     ]
   },
-  agentNotes: 'User is being offered a deal that seems too good to be true, and is being asked to send money quickly. The link is a phishing link and the offer expires in 10 minutes, which is a common tactic to create urgency.'
-}
-```
-
----
-
-# ⏱ Latency Optimizations
-
-| Component         | Timeout          |
-| ----------------- | ---------------- |
-| Scam Detection AI | ~1200ms          |
-| AI Agent Response | ~5000ms          |
-| Extraction        | Background async |
-
-Response is sent immediately.
-Extraction & callback run non-blocking.
-
----
-
-# 🧪 How To Test (Postman)
-
-## Endpoint
-
-```
-POST /
-```
-
-(or your configured route, e.g., /api/honeypot)
-
----
-
-## Request Format
-
-```json
-{
-  "sessionId": "test-session-001",
-  "message": {
-    "sender": "scammer",
-    "text": "Click http://amaz0n-deals.fake-site.com/claim?id=12345 to claim your prize immediately!",
-    "timestamp": 1769776085003
-  }
-}
-```
-
----
-
-## Example Response
-
-```json
-{
-  "status": "success",
-  "reply": "Sir, I opened the link but I'm confused. It says the offer expires soon. What exactly do I need to do?"
+  "agentNotes": "Customer is being asked to transfer money to unblock account, potential phishing attempt."
 }
 ```
 
@@ -278,12 +295,16 @@ POST /
 
 # 🗄️ Conversation Model
 
-Each conversation stores:
-
 ```
 conversationId
 messages[]
+    role
+    content
+    timestamp
+
 scamDetected (boolean)
+finalCallbackSent (boolean)
+
 extractedData {
     bankAccounts[]
     upiIds[]
@@ -292,7 +313,9 @@ extractedData {
     suspiciousKeywords[]
     agentNotes
 }
-finalCallbackSent (boolean)
+
+createdAt
+updatedAt
 ```
 
 ---
@@ -322,16 +345,66 @@ flowchart TD
     Callback --> End
 ```
 
+Frontend interacts only with stored conversation data.
+Backend detection and engagement flow remains unchanged.
+
+---
+
+# ⏱ Latency Optimizations
+
+| Component         | Timeout          |
+| ----------------- | ---------------- |
+| Scam Detection AI | ~1200ms          |
+| AI Agent Response | ~5000ms          |
+| Extraction        | Async background |
+
+User receives response immediately.
+Extraction & callback run non-blocking.
+
+---
+
+# 🚀 Running Locally
+
+## Backend
+
+```
+cd backend
+npm install
+npm run dev
+```
+
+### .env
+
+```
+PORT=4000
+MONGO_URI=your_mongo_uri
+OPENROUTER_API_KEY=your_key
+API_KEY=test_api_key
+```
+
+---
+
+## Frontend
+
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Make sure API base URL points to backend.
+
 ---
 
 # 🔮 Future Improvements
 
-* Redis queue for extraction jobs
-* Web dashboard for monitoring
+* Redis job queue
+* Real-time dashboard updates (WebSockets)
 * Behavioral scam profiling
-* RAG-based scam pattern memory
-* Rate limiting middleware
+* RAG-based scam memory
 * Threat intelligence API integration
+* Analytics dashboard
+* Admin authentication layer
 
 ---
 
@@ -339,6 +412,7 @@ flowchart TD
 
 Harsh Tripathi
 
-GitHub: [https://github.com/ImaginationGod/Honeypot](https://github.com/ImaginationGod/Honeypot)
+GitHub:
+[https://github.com/ImaginationGod/Honeypot](https://github.com/ImaginationGod/Honeypot)
 
 ---
