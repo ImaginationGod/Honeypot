@@ -24,6 +24,7 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
+// For ping service
 app.get("/ping", (req, res) => {
   res.status(200).send("pong");
 });
