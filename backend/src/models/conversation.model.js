@@ -8,7 +8,7 @@ const messageSchema = new mongoose.Schema({
 
 const conversationSchema = new mongoose.Schema(
     {
-        conversationId: { type: String, unique: true, index: true, required: true },
+        conversationId: { type: String, unique: true, required: true },
         messages: [messageSchema],
         scamDetected: { type: Boolean, default: false },
         finalCallbackSent: { type: Boolean, default: false },
@@ -21,7 +21,16 @@ const conversationSchema = new mongoose.Schema(
             agentNotes: { type: String, default: "" }
         }
     },
-    { timestamps: true }
+    {
+        timestamps: true,
+        autoIndex: false
+    }
 );
 
-export default mongoose.model("Conversation", conversationSchema);
+if (!conversationSchema.indexes().some(idx => idx[0].conversationId)) {
+    conversationSchema.index({ conversationId: 1 }, { unique: true });
+    conversationSchema.index({ scamDetected: 1 });
+    conversationSchema.index({ createdAt: -1 });
+}
+
+export default mongoose.models.Conversation || mongoose.model("Conversation", conversationSchema);

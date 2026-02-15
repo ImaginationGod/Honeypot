@@ -5,34 +5,6 @@ import { agentPersonaPrompt } from "../prompts/agentPersona.prompt.js";
 import { runAgent } from "../services/agent.service.js";
 import { extractIntel } from "../services/extraction.service.js";
 
-async function notifyGuviFinal(convo) {
-    const payload = {
-        sessionId: convo.conversationId,
-        scamDetected: true,
-        totalMessagesExchanged: convo.messages.length,
-        extractedIntelligence: {
-            bankAccounts: convo.extractedData?.bankAccounts || [],
-            upiIds: convo.extractedData?.upiIds || [],
-            phishingLinks: convo.extractedData?.phishingLinks || [],
-            phoneNumbers: convo.extractedData?.phoneNumbers || [],
-            suspiciousKeywords: convo.extractedData?.suspiciousKeywords || []
-        },
-        agentNotes: convo.extractedData?.agentNotes || "Scammer engagement successful. Intelligence captured."
-    };
-
-    try {
-        await axios.post(
-            "https://hackathon.guvi.in/api/updateHoneyPotFinalResult",
-            payload,
-            { timeout: 5000 }
-        );
-        console.log(`Final Callback sent for session: ${convo.conversationId}`);
-        console.log(payload)
-    } catch (err) {
-        console.error("GUVI mandatory callback failed:", err.message);
-    }
-}
-
 export default async function honeypotController(req, res) {
     const withTimeout = (promise, ms) =>
         Promise.race([
@@ -54,10 +26,9 @@ export default async function honeypotController(req, res) {
     try {
         let body = req.body;
         if (typeof body === "string") {
-            try {
-                body = JSON.parse(body);
-            } catch { }
+            try { body = JSON.parse(body); } catch { }
         }
+
         const safeId =
             body?.sessionId ||
             body?.message?.sessionId ||
@@ -65,19 +36,34 @@ export default async function honeypotController(req, res) {
             `auto-${Date.now()}`;
 
         let message = "";
-        if (body?.message?.text) message = body.message.text;
-        else if (body?.text) message = body.text;
-        else if (typeof body === "string") message = body;
-        message = String(message || "").trim();
+        if (body?.message?.text) {
+            message = typeof body.message.text === "string"
+                ? body.message.text
+                : JSON.stringify(body.message.text);
+        } else if (body?.text) {
+            message = typeof body.text === "string"
+                ? body.text
+                : JSON.stringify(body.text);
+        } else if (typeof body === "string") {
+            message = body;
+        }
+
+        message = message.trim();
+        const text = message.toLowerCase();
 
         let convo = await Conversation.findOne({ conversationId: safeId });
-
         if (!convo) {
             convo = await Conversation.create({
                 conversationId: safeId,
                 messages: [],
                 scamDetected: false,
-                extractedData: { bankAccounts: [], upiIds: [], phishingLinks: [], phoneNumbers: [], suspiciousKeywords: [] }
+                extractedData: {
+                    bankAccounts: [],
+                    upiIds: [],
+                    phishingLinks: [],
+                    phoneNumbers: [],
+                    suspiciousKeywords: []
+                }
             });
         }
 
@@ -86,115 +72,154 @@ export default async function honeypotController(req, res) {
             await convo.save();
         }
 
-        const keywords = /verify|blocked|suspend|kyc|urgent|immediately|click|otp|pay|rupees|official|disconnected|prize|job/i;
-        const context = /bank|account|upi|payment|id|vpa|wallet|electricity|bill/i;
+        // ENHANCED HEURISTIC ENGINE
+        const urgencyPattern = /(urgent|immediately|right now|asap|quickly)/i;
+        const paymentPattern = /(pay|send|transfer|processing fee|charges|deposit)/i;
+        const financialPattern = /(bank|account|upi|wallet|loan|credit|debit)/i;
+        const govtPattern = /(govt|government|subsidy|aadhaar|pan|income tax|rbi|sbi|official)/i;
+        const impersonationPattern = /(hi (mom|dad|bro|sis)|this is my new number|lost my phone|i'?m in trouble)/i;
+        const loanScamPattern = /(loan.*approved|instant loan|pre-approved loan)/i;
+        const moneyPattern = /(₹\s?\d+|\d+\s?(rupees|rs))/i;
+        const dataHarvestPattern = /(submit|provide|share).*(details|information|bank|account|aadhaar|otp)/i;
+
         const hasUpi = /[\w.-]+@[\w.-]+/.test(message);
         const hasLink = /(https?:\/\/|www\.|bit\.ly|tinyurl)/i.test(message);
-        const linkIntent = /(click|tap|open).*(link)/i;
         const hasPhoneNumber = /(\+?\d{1,3}[\s-]?)?\d{10}/.test(message);
 
-        const heuristicDetected = (keywords.test(message) && context.test(message)) || hasLink || hasUpi || hasPhoneNumber || linkIntent.test(message);
+        let heuristicScore = 0;
 
+        if (urgencyPattern.test(text)) heuristicScore += 0.2;
+        if (paymentPattern.test(text)) heuristicScore += 0.2;
+        if (financialPattern.test(text)) heuristicScore += 0.2;
+        if (govtPattern.test(text)) heuristicScore += 0.3;
+        if (impersonationPattern.test(text)) heuristicScore += 0.4;
+        if (loanScamPattern.test(text)) heuristicScore += 0.4;
+        if (moneyPattern.test(text)) heuristicScore += 0.2;
+        if (dataHarvestPattern.test(text)) heuristicScore += 0.4;
+        if (hasLink) heuristicScore += 0.4;
+        if (hasUpi) heuristicScore += 0.4;
+        if (hasPhoneNumber) heuristicScore += 0.2;
+
+        const heuristicContribution = Math.min(heuristicScore, 0.7);
+
+        // AI Detection
         let aiDetection = { scam: false, confidence: 0 };
-        try { aiDetection = await withTimeout(detectScam(message), 1200); } catch { }
+        try {
+            aiDetection = await withTimeout(detectScam(message), 1200);
+        } catch { }
+
+        const aiContribution = (aiDetection?.confidence || 0) * 0.3;
+
+        let riskScore = heuristicContribution + aiContribution;
+        riskScore = Math.min(riskScore, 1);
 
         const alreadyFlagged = convo.scamDetected === true;
-        let riskScore = 0;
-        if (heuristicDetected) riskScore += 0.7;
-        if (aiDetection.confidence) riskScore += aiDetection.confidence * 0.3;
+        const isScam = alreadyFlagged || riskScore >= 0.6;
 
-        const isScam = alreadyFlagged || (Math.min(riskScore, 1) >= 0.6);
+        // Explainability Engine
+        const triggers = [];
+
+        if (impersonationPattern.test(text)) triggers.push("Impersonation attempt detected");
+        if (loanScamPattern.test(text)) triggers.push("Loan scam pattern detected");
+        if (govtPattern.test(text)) triggers.push("Government impersonation detected");
+        if (dataHarvestPattern.test(text)) triggers.push("Sensitive data request detected");
+        if (paymentPattern.test(text)) triggers.push("Payment request detected");
+        if (urgencyPattern.test(text)) triggers.push("Urgency language detected");
+        if (hasLink) triggers.push("Suspicious URL detected");
+        if (hasUpi) triggers.push("UPI ID detected");
+        if (hasPhoneNumber) triggers.push("Phone number detected");
+        if (moneyPattern.test(text)) triggers.push("Monetary amount mentioned");
+        if (aiDetection?.confidence > 0.5)
+            triggers.push(`AI confidence high (${aiDetection.confidence})`);
 
         let reply = "Thanks for reaching out. Could you please provide more details?";
 
+        // SCAM FLOW
         if (isScam) {
             convo.scamDetected = true;
-            const history = convo.messages.map(m => `${m.role}: ${m.content}`).join("\n");
 
-            let rawReply;
+            const history = convo.messages
+                .map(m => `${m.role}: ${m.content}`)
+                .join("\n");
+
             try {
                 const prompt = agentPersonaPrompt(history);
-                rawReply = await withTimeout(runAgent(prompt), 4000); // 4 sec wait at best
-                reply = rawReply.replace(/^["']|["']$/g, '').trim();
-            } catch (e) {
-                reply = "I'm a bit confused. What exactly do I need to do to fix this?";
+                const rawReply = await withTimeout(runAgent(prompt), 4000);
+                reply = rawReply.replace(/^["']|["']$/g, "").trim();
+            } catch {
+                reply = "I'm not sure I understand. Could you clarify what I need to do?";
             }
 
             res.status(200).json({
                 status: "success",
-                reply: reply
+                reply,
+                conversationId: safeId,
+                scamDetected: true,
+                messageCount: convo.messages.length,
+                risk: {
+                    finalScore: Number(riskScore.toFixed(2)),
+                    heuristic: Number(heuristicContribution.toFixed(2)),
+                    aiConfidence: aiDetection?.confidence || 0,
+                    weightedAI: Number(aiContribution.toFixed(2))
+                },
+                explanation: {
+                    triggered: triggers.length > 0,
+                    reasons: triggers
+                }
             });
 
+            // Background processing
             (async () => {
                 try {
-                    let extracted = {
-                        bankAccounts: [],
-                        upiIds: [],
-                        phishingLinks: [],
-                        phoneNumbers: [],
-                        suspiciousKeywords: [],
-                        agentNotes: ""
-                    };
-
-                    const extractionContext = `${history}\nassistant: ${reply}`;
-                    try {
-                        const rawExtracted = await extractIntel(extractionContext);
-                        extracted = normalizeExtractedIntel(rawExtracted);
-                    } catch (err) {
-                        console.warn("Extraction failed, continuing without intel");
-                    }
-
-                    const upiMatches = extractionContext.match(/[\w.-]+@[\w.-]+/g);
-                    if (upiMatches?.length) {
-                        extracted.upiIds = [...new Set([...extracted.upiIds, ...upiMatches])];
-                    }
-
-                    const phoneMatches = extractionContext.match(/(\+?\d{1,3}[\s-]?)?\d{10}/g);
-                    if (phoneMatches?.length) {
-                        extracted.phoneNumbers = [...new Set([...extracted.phoneNumbers, ...phoneMatches])];
-                    }
-
-                    const keywordList = ["pay", "blocked", "urgent", "immediately", "verify", "otp"];
-                    const detectedKeywords = keywordList.filter(k =>
-                        extractionContext.toLowerCase().includes(k)
+                    let extracted = normalizeExtractedIntel(
+                        await extractIntel(history + `\nassistant: ${reply}`)
                     );
-                    if (detectedKeywords.length) {
-                        extracted.suspiciousKeywords = [...new Set([...extracted.suspiciousKeywords, ...detectedKeywords])];
-                    }
 
-                    const updatedConvo = await Conversation.findOneAndUpdate(
+                    await Conversation.findOneAndUpdate(
                         { conversationId: safeId },
                         {
-                            $set: { scamDetected: true, extractedData: extracted },
-                            $push: { messages: { role: "assistant", content: reply } }
-                        },
-                        { new: true, upsert: true }
+                            $set: {
+                                scamDetected: true,
+                                extractedData: extracted
+                            },
+                            $push: {
+                                messages: { role: "assistant", content: reply }
+                            }
+                        }
                     );
-
-                    if (!updatedConvo.finalCallbackSent) {
-                        await notifyGuviFinal(updatedConvo);
-
-                        await Conversation.updateOne(
-                            { conversationId: safeId },
-                            { $set: { finalCallbackSent: true } }
-                        );
-                    }
-
                 } catch (err) {
                     console.error("Background Worker Error:", err);
                 }
             })();
+
         } else {
             convo.messages.push({ role: "assistant", content: reply });
             await convo.save();
+
             return res.status(200).json({
                 status: "success",
-                reply: reply
+                reply,
+                conversationId: safeId,
+                scamDetected: false,
+                messageCount: convo.messages.length,
+                risk: {
+                    finalScore: Number(riskScore.toFixed(2)),
+                    heuristic: Number(heuristicContribution.toFixed(2)),
+                    aiConfidence: aiDetection?.confidence || 0,
+                    weightedAI: Number(aiContribution.toFixed(2))
+                },
+                explanation: {
+                    triggered: triggers.length > 0,
+                    reasons: triggers
+                }
             });
         }
 
     } catch (err) {
         console.error("Critical Honeypot Error:", err);
-        return res.status(200).json({ status: "success", reply: "Sorry, I didn't quite catch that. Can you repeat?" });
+        return res.status(200).json({
+            status: "success",
+            reply: "Sorry, I didn't quite catch that. Can you repeat?"
+        });
     }
 }

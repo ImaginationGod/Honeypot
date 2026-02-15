@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import honeypotRoutes from "./routes/honeypot.routes.js";
+import conversationRoutes from "./routes/conversation.routes.js";
+import analyticsRoutes from "./routes/analytics.routes.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 
 const app = express();
@@ -18,11 +20,18 @@ app.get("/", (req, res) => {
   });
 });
 
-app.get("/ping", (req, res) => {
-  res.status(200).send("pong");
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
 });
 
+// app.get("/ping", (req, res) => {
+//   res.status(200).send("pong");
+// });
+
 app.use("/api/honeypot", honeypotRoutes);
+
+app.use("/conversations", conversationRoutes);
+app.use("/analytics", analyticsRoutes);
 
 app.use(errorMiddleware);
 
