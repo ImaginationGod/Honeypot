@@ -24,9 +24,9 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// app.get("/ping", (req, res) => {
-//   res.status(200).send("pong");
-// });
+app.get("/ping", (req, res) => {
+  res.status(200).send("pong");
+});
 
 app.use("/api/honeypot", honeypotRoutes);
 
