@@ -2,7 +2,7 @@
 
 An AI-powered **full-stack honeypot intelligence system** that detects scam attempts, engages scammers in dynamic multi-turn conversations, extracts structured intelligence, and visualizes results in a modern monitoring dashboard.
 
-Deployed on **Render**.
+Deployed backend on **Render** and frontend on **Vercel**.
 
 ---
 
